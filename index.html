@@ -1,0 +1,425 @@
+
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8">
+  <title>Võrrandi teisendamise harjutamine</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px;
+      background-color: #f0f4f8;
+    }
+    select, input, button {
+      font-size: 1em;
+      margin: 10px;
+      padding: 8px 12px;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      display: inline-block;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      width: 80%;
+      max-width: 600px;
+    }
+    #scoreBoard {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card" id="startCard">
+    <h1>Võrrandi teisendamise harjutused</h1>
+
+    <label for="mode">Vali harjutus:</label><br>
+    <select id="mode">
+      <option value="yks_v_paremale">Arvude viimine vasakult paremale</option>
+      <option value="yks_v_vasakule">Muutujate (tähtede) viimine paremalt vasakule</option>
+      <option value="mitu_v_liiget">Arvude ja muutujate viimine üle võrdusmärgi</option>
+    </select>
+
+    <br><button onclick="startSession()">Alusta</button>
+    <div id="scoreBoard">Punktid: <span id="score">0</span></div>
+  </div>
+
+  <div id="exerciseArea"></div>
+
+  <script>
+    let score = 0;
+    let currentMode = "";
+    let currentExercises = [];
+    let currentIndex = 0;
+
+    const exercises = {
+      yks_v_paremale: [
+        { q: "x + 3 = 7", a: ["x = 7 - 3", "x = 4"] },
+        { q: "2x + 5 = 9", a: ["2x = 9 - 5", "2x = 4"] },
+        { q: "a + 6 = 10", a: ["a = 10 - 6", "a = 4"] },
+        { q: "y + 8 = 13", a: ["y = 13 - 8", "y = 5"] },
+        { q: "m + 2 = 6", a: ["m = 6 - 2", "m = 4"] },
+        { q: "z + 9 = 12", a: ["z = 12 - 9", "z = 3"] }
+      ], 
+            
+     yks_v_vasakule: [
+        { q: "7x = x + 3", a: ["7x-x = 3", "6x = 3", "x = 0,5"] },
+        { q: "3x = 2x + 5", a: ["3x-2x = 5", "x = 5"] },
+        { q: "10a = 9a + 6", a: ["10a -9a = 6", "a = 6", "1a = 6"] },
+        { q: "-7y = 12 - 8y", a: ["-7y + 8y = 12", "8y - 7y=12", "y = 12"] },
+        { q: "6m = -3m + 18", a: ["6m+3m = 18", "9m = 18", "3m+6m=18", "m=2"] },
+        { q: "10z = -24 + 2z", a: ["10z-2z = -24", "-2z+10z = -24", "8z=-24", "z=-4"] }
+      ],
+         
+   mitu_v_liiget: [
+    { q: "x - 8 = -4x + 7",
+      a: [
+        "x + 4x = 7 + 8", "x + 4x = 8 + 7",
+        "4x + x = 7 + 8", "4x + x = 8 + 7",
+        "5x = 15", "5x = 8 + 7", "5x = 7 + 8",
+        "x + 4x = 15", "4x + x = 15", "x = 3" ]
+    },
+    { q: "7x - 4 = x + 8",
+      a: [
+        "7x - x = 8 + 4", "-x + 7x = 8 + 4",
+        "-x + 7x = 4 + 8", "7x - x = 4 + 8",
+        "6x = 12", "6x = 4 + 8", "6x = 8 + 4",
+        "-x + 7x = 12", "7x - x = 12", "x = 2" ]
+    },
+    { q: "5x + 3 = 2x + 9",
+      a: [
+        "5x - 2x = 9 - 3", "-2x + 5x = 9 - 3",
+        "5x - 2x = 6", "-2x + 5x = 6",
+        "3x = 6", "3x = 9 - 3",
+        "5x - 2x = 9 - 3", "-2x + 5x = 9 - 3",
+        "3x = 6", "x = 2" ]
+    },
+    { q: "4x - 7 = x + 5",
+      a: [
+        "4x - x = 5 + 7", "-x + 4x = 5 + 7",
+        "-x + 4x = 12", "4x - x = 12",
+        "3x = 12", "3x = 5 + 7", "3x = 7 + 5",
+        "4x - x = 5 + 7", "-x + 4x = 7 + 5", "x = 4" ]
+    },
+    { q: "6x + 2 = 2x + 14",
+      a: [
+        "6x - 2x = 14 - 2", "-2x + 6x = 14 - 2",
+        "4x = 12", "6x - 2x = 12", "-2x + 6x = 12",
+        "6x - 2x = 14 - 2", "-2x + 6x = 12", 
+        "6x - 2x = 14 - 2", "-2x + 6x = 14 - 2", "x = 3" ]
+    },
+    { q: "2x + 4 = x + 10",
+      a: [
+        "2x - x = 10 - 4", "-x + 2x = 10 - 4",
+        "x = 6", "2x - x = 6", "-x + 2x = 6" ]
+    },
+    { q: "8x - 6 = 2x + 6",
+      a: [
+        "8x - 2x = 6 + 6", "-2x + 8x = 6 + 6",
+        "6x = 12", "8x - 2x = 12", "-2x + 8x = 12",
+        "8x - 2x = 6 + 6", "-2x + 8x = 12",
+        "6x = 6 + 6", "6x = 12", "x = 2" ]
+    },
+    { q: "9x + 1 = 4x + 11",
+      a: [
+        "9x - 4x = 11 - 1", "-4x + 9x = 11 - 1",
+        "5x = 10", "9x - 4x = 10", "-4x + 9x = 10",
+        "5x = 11 - 1", "-4x + 9x = 11 - 1",
+        "9x - 4x = 11 - 1", "5x = 10", "x = 2" ]
+    },
+    { q: "10x - 3 = 5x + 2",
+      a: [
+        "10x - 5x = 2 + 3", "-5x + 10x = 2 + 3",
+        "5x = 5", "10x - 5x = 5", "-5x + 10x = 5",
+        "5x = 2 + 3", "10x - 5x = 5", 
+        "-5x + 10x = 2 + 3", "5x = 5", "x = 1" ]
+    },
+    { q: "6x + 9 = 3x + 18",
+      a: [
+        "6x - 3x = 18 - 9", "-3x + 6x = 18 - 9",
+        "3x = 9", "6x - 3x = 9", "-3x + 6x = 9",
+        "3x = 18 - 9", "6x - 3x = 9", 
+        "-3x + 6x = 9", "3x = 9", "x = 3" ]
+    },
+    
+    { q: "2x + 4 = x - 2",
+    a: [
+      "2x - x = -2 - 4",
+      "-x + 2x = -2 - 4",
+      "2x + -x = -4 - 2",
+      "-x + 2x = -4 -2",
+      "2x - x = -6",
+      "-x + 2x = -6",
+      "x = -6",
+      "x = -2 - 4",
+      "x = -4 -2", ]
+  },
+   { q: "5x + 1 = 3x - 5",
+    a: [
+      "5x - 3x = -5 - 1",
+      "-3x + 5x = -5 - 1",
+      "5x + -3x = -5 - 1",
+      "5x + -3x = -1 - 5",
+      "5x - 3x = -6",
+      "-3x + 5x = -6",
+      "2x = -6",
+      "2x = -5 - 1",
+      "2x = -1 -5",
+      "x = -3" ]
+  },
+   { q: "6x + 2 = 2x - 10",
+    a: [
+      "6x - 2x = -10 - 2",
+      "-2x + 6x = -10 - 2",
+      "6x + -2x = -10 - 2",
+      "6x - 2x = -12",
+      "-2x + 6x = -12",
+      "4x = -12",
+      "4x = -10 - 2",
+      "4x = -2 - 10",
+      "4x = -12",
+      "x = -3" ]
+  },
+  { q: "4x + 7 = x - 5",
+    a: [
+      "4x - x = -5 - 7",
+      "-x + 4x = -5 - 7",
+      "-x + 4x = -7 - 5",
+      "4x -x = -7 - 5",
+      "4x - x = -12",
+      "-x + 4x = -12",
+      "3x = -12",
+      "3x = -5 - 7",
+      "3x = -7 - 5",
+      "x = -4"  ]
+  },
+   { q: "3x + 12 = 2 - 2x",
+    a: [
+      "3x + 2x = 2 - 12",
+      "2x + 3x = 2 - 12",
+      "2x + 3x = -12 + 2",
+      "3x + 2x = -12 + 2",
+      "5x = 2 - 12",
+      "5x = -12 + 2",
+      "5x = -10",
+      "3x + 2x = -10",
+      "2x + 3x = -10",
+      "x = -2" ]
+  },
+  { q: "4x - 2 = -x + 8",
+    a: [
+      "4x + x = 8 +2",
+      "x + 4x = 8 +2",
+      "4x + x = 2 + 8",
+      "x + 4x = 2 + 8",
+      "5x = 8 +2",
+      "5x = 2 + 8",
+      "5x = 10",
+      "4x + x = 10",
+      "x + 4x = 10",
+      "x = 2" ]
+  },
+  {
+    q: "2x + 7 = 4 - x",
+    a: [
+      "2x + x = 4 - 7",
+      "x + 2x = 4 - 7",
+      "2x + x = -7 + 4",
+      "x + 2x = -7 + 4",
+      "3x = 4 - 7",
+      "3x = -7 + 4",
+      "3x = -3",
+      "2x + x = -3",
+      "x + 2x = -3",
+      "x = -1"  ]
+  },
+  {
+    q: "5x - 9 = -2x + 5",
+    a: [
+      "5x + 2x = 5+ 9",
+      "2x + 5x = 5+ 9",
+      "5x + 2x = 9+5",
+      "2x + 5x = 9+5",
+      "7x = 5+9",
+      "7x = 9+5",
+      "7x = 14",
+      "5x + 2x =14",
+      "2x + 5x = 14",
+      "x = 2"  ]
+  },
+  {
+    q: "x + 10 = -4x + 5",
+    a: [
+      "x + 4x = 5 - 10",
+      "4x + x = 5 - 10",
+      "x + 4x = -10 + 5",
+      "4x + x = -10 + 5",
+      "5x = 5 - 10",
+      "5x = -10 + 5",
+      "5x = -5",
+      "x + 4x = -5",
+      "4x + x = -5",
+      "x = -1" ]
+  },
+  { q: "4x + 6 = 1 - x",
+    a: [
+      "4x + x = 1 - 6",
+      "x + 4x = 1 - 6",
+      "4x + x = -6 + 1",
+      "x + 4x = -6 + 1",
+      "5x = 1 - 6",
+      "5x = -6 + 1",
+      "5x = -5",
+      "4x + x = -5",
+      "x + 4x = -5",
+      "x = -1" ]
+  },
+  { q: "5x + 8 = 2 - x",
+    a: [
+      "5x + x = 2 - 8",
+      "x + 5x = 2 - 8",
+      "5x + x = -8 + 2",
+      "x + 5x = -8 + 2",
+      "6x = 2 - 8",
+      "6x = -8 + 2",
+      "6x = -6",
+      "5x + x = -6",
+      "x + 5x = -6",
+      "x = -1"  ]
+  },
+  { q: "6x + 5 = -3x + 2",
+    a: [
+      "6x + 3x = 2 - 5",
+      "3x + 6x = 2 - 5",
+      "6x + 3x = -5 + 2",
+      "3x + 6x = -5 + 2",
+      "9x = 2 - 5",
+      "9x = -5 + 2",
+      "9x = -3",
+      "6x + 3x = -3",
+      "3x + 6x = -3",
+      "x = -1/3"  ]
+  },
+  { q: "2x + 10 = -3x + 5",
+    a: [
+      "2x + 3x = 5 - 10",
+      "3x + 2x = 5 - 10",
+      "2x + 3x = -10 + 5",
+      "3x + 2x = -10 + 5",
+      "5x = 5 - 10",
+      "5x = -10 + 5",
+      "5x = -5",
+      "2x + 3x = -5",
+      "3x + 2x = -5",
+      "x = -1" ]
+  },
+  { q: "x + 9 = 4 - 4x",
+    a: [
+      "x + 4x = 4 - 9",
+      "4x + x = 4 - 9",
+      "x + 4x = -9 + 4",
+      "4x + x = -9 + 4",
+      "5x = 4 - 9",
+      "5x = -9 + 4",
+      "5x = -5",
+      "x + 4x = -5",
+      "4x + x = -5",
+      "x = -1" ]
+  }
+]
+}
+
+    function startSession() {
+      currentMode = document.getElementById("mode").value;
+      currentExercises = shuffle([...exercises[currentMode]]).slice(0, 5);
+      currentIndex = 0;
+      score = 0;
+      document.getElementById("score").innerText = score;
+      document.getElementById("exerciseArea").innerHTML = "";
+      document.getElementById("startCard").classList.add("hidden");
+      showNextExercise();
+    }
+
+    function showNextExercise() {
+      if (currentIndex >= currentExercises.length) {
+        const endMessage = document.createElement("div");
+        endMessage.className = "card";
+        endMessage.innerHTML = `
+          <h2>Harjutus lõpetatud!</h2>
+          <p>Kokku punkte: ${score}/5</p>
+          <button onclick="resetToStart()">Vali uus harjutus</button>
+        `;
+        document.getElementById("exerciseArea").appendChild(endMessage);
+        return;
+      }
+
+      const ex = currentExercises[currentIndex];
+      const exDiv = document.createElement("div");
+      exDiv.className = "card";
+
+      const inputId = `input_${currentIndex}`;
+      const feedbackId = `feedback_${currentIndex}`;
+
+      exDiv.innerHTML = `
+        <p><strong>Võrrand:</strong> ${ex.q}</p>
+        <p>Sisestatud teisendus:</p>
+        <input id="${inputId}" type="text" placeholder="Sisesta uus võrrand">
+        <br><button id="check_${currentIndex}">Kontrolli</button>
+        <p id="${feedbackId}"></p>
+      `;
+
+      document.getElementById("exerciseArea").appendChild(exDiv);
+
+      document.getElementById(`check_${currentIndex}`).addEventListener("click", () => {
+        const userInput = document.getElementById(inputId).value;
+        const normalized = normalize(userInput);
+        const answers = ex.a.map(a => normalize(a));
+        const feedback = document.getElementById(feedbackId);
+
+        if (answers.includes(normalized)) {
+          score++;
+          feedback.style.color = 'green';
+          feedback.innerText = 'Õige!';
+        } else {
+          feedback.style.color = 'red';
+          feedback.innerText = 'Vale. Näide õigest vastusest: ' + ex.a[0];
+        }
+
+        document.getElementById("score").innerText = score;
+      });
+
+      const navBtn = document.createElement("button");
+      navBtn.textContent = currentIndex < currentExercises.length - 1 ? "Järgmine" : "Lõpeta ja vaata tulemust";
+      navBtn.style.marginTop = "10px";
+      navBtn.addEventListener("click", showNextExercise);
+      exDiv.appendChild(navBtn);
+
+      currentIndex++;
+    }
+
+    function normalize(str) {
+      return str.replace(/\s+/g, '').toLowerCase();
+    }
+
+    function resetToStart() {
+      document.getElementById("startCard").classList.remove("hidden");
+      document.getElementById("exerciseArea").innerHTML = "";
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+  </script>
+</body>
+</html>
